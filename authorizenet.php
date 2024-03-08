@@ -6,11 +6,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
-Plugin Name: Gravity Forms Authorize.Net Add-On
+Plugin Name: Gravity Forms Authorize.Net Add-On - With wait for Webhook
 Plugin URI: https://gravityforms.com
-Description: Integrates Gravity Forms with Authorize.Net, enabling end users to purchase goods and services through Gravity Forms.
+Description: Integrates Gravity Forms with Authorize.Net, enabling end users to purchase goods and services through Gravity Forms. Adds a checkbox to wait for webhooks to finish
 Version: 2.8
-Author: Gravity Forms
+Author: Austin Hunter
 Author URI: https://gravityforms.com
 License: GPL-2.0+
 Text Domain: gravityformsauthorizenet
