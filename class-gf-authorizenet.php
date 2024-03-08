@@ -51,9 +51,67 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 	}
 
 	//----- SETTINGS PAGES ----------//
+
+	/**
+	 * Return the plugin's icon for the plugin/form settings menu.
+	 *
+	 * @since 2.7
+	 *
+	 * @return string
+	 */
+	public function get_menu_icon() {
+
+		return file_get_contents( $this->get_base_path() . '/images/menu-icon.svg' );
+
+	}
+
 	public function plugin_settings_fields() {
 
 		$description = '<p style="text-align: left;">' . sprintf( esc_html__( 'Authorize.Net is a payment gateway for merchants. Use Gravity Forms to collect payment information and automatically integrate to your Authorize.Net account. If you don\'t have an Authorize.Net account, you can %ssign up for one here.%s', 'gravityformsauthorizenet' ), '<a href="http://www.authorizenet.com" target="_blank">', '</a>' ) . '</p>';
+
+		$arb_field = array(
+			'name'    => 'arb',
+			'label'   => 'ARB',
+			'type'    => 'checkbox',
+			'choices' => array(
+				array(
+					'label' => esc_html__( 'ARB is set up in my Authorize.Net account.', 'gravityformsauthorizenet' ),
+					'name'  => 'arb',
+				),
+			),
+		);
+
+		$automatic_retry_field = array(
+			'name'    => 'automaticRetry',
+			'label'   => 'Automatic Retry',
+			'type'    => 'checkbox',
+			'tooltip'       => '<h6>' . esc_html__( 'Automatic Retry', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Automatic Retry enhances Recurring Billing so you do not need to manually collect failed payments. With Automatic Retry, your customer\'s subscriptions will not terminate due to payment failures and will remain in a suspended status until you update the subscription\'s payment details. Once updated, Authorize.Net will automatically retry the failed payment in the subscription.'  , 'gravityformsauthorizenet' ),
+			'choices' => array(
+				array(
+					'label' => esc_html__( 'Automatic Retry is turned on in my Authorize.Net account. To enable this feature in your Authorize.Net account, go to the Recurring Billing page under Tools and click on "Enable Automatic Retry" under Settings.', 'gravityformsauthorizenet' ),
+					'name'  => 'automaticRetry'
+				)
+			),
+		);
+
+		if ( $this->is_gravityforms_supported( '2.5-dev-1' ) ) {
+			$automatic_retry_field['dependency'] = array(
+				'live'   => true,
+				'fields' => array(
+					array(
+						'field'  => 'arb',
+						'values' => array( 'arb' ),
+					),
+				),
+			);
+		} else {
+			$arb_field['onchange'] = "if(jQuery(this).prop('checked')){
+                                        jQuery('#gaddon-setting-row-automaticRetry').show();
+                                      } else {
+                                        jQuery('#gaddon-setting-row-automaticRetry').hide();
+                                      }";
+			$automatic_retry_field['hidden'] = ! $this->get_setting( 'arb' );
+		}
 
 		return array(
 			array(
@@ -80,14 +138,16 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 					array(
 						'name'              => 'loginId',
 						'label'             => esc_html__( 'API Login ID', 'gravityformsauthorizenet' ),
-						'type'              => 'api_login',
+						'type'              => 'text',
+						'description'       => 	sprintf( esc_html__( 'You can find your unique %sTransaction Key%s by clicking on the \'Account\' link at the Authorize.Net Merchant Interface. Then click \'API Login ID and Transaction Key\'. For security reasons, you cannot view your Transaction Key, but you will be able to generate a new one.', 'gravityformsauthorizenet' ), '<strong>', '</strong>' ),
 						'class'             => 'medium',
 						'feedback_callback' => array( $this, 'is_valid_plugin_key' ),
 					),
 					array(
 						'name'              => 'transactionKey',
 						'label'             => esc_html__( 'Transaction Key', 'gravityformsauthorizenet' ),
-						'type'              => 'api_key',
+						'type'              => 'text',
+						'description'       => sprintf( esc_html__( 'You can find your unique %sTransaction Key%s by clicking on the \'Account\' link at the Authorize.Net Merchant Interface. Then click \'API Login ID and Transaction Key\'. For security reasons, you cannot view your Transaction Key, but you will be able to generate a new one.', 'gravityformsauthorizenet' ), '<strong>', '</strong>' ),
 						'class'             => 'medium',
 						'feedback_callback' => array( $this, 'is_valid_plugin_key' ),
 					),
@@ -96,73 +156,11 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 			array(
 				'title'  => esc_html__( 'Automated Recurring Billing Setup', 'gravityformsauthorizenet' ),
 				'fields' => array(
-					array(
-						'name'    => 'arb',
-						'label'   => 'ARB',
-						'type'    => 'checkbox',
-						'onchange' => "if(jQuery(this).prop('checked')){
-										jQuery('#gaddon-setting-row-automaticRetry').show();
-
-									} else {
-										jQuery('#gaddon-setting-row-automaticRetry').hide();
-
-									}",
-						'choices' => array(
-							array(
-								'label' => esc_html__( 'ARB is set up in my Authorize.Net account.', 'gravityformsauthorizenet' ),
-								'name'  => 'arb'
-							)
-						),
-					),
-					array(
-						'name'    => 'automaticRetry',
-						'label'   => 'Automatic Retry',
-						'type'    => 'checkbox',
-						'hidden'  => ! $this->get_setting( 'arb' ),
-						'tooltip'       => '<h6>' . esc_html__( 'Automatic Retry', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Automatic Retry enhances Recurring Billing so you do not need to manually collect failed payments. With Automatic Retry, your customer\'s subscriptions will not terminate due to payment failures and will remain in a suspended status until you update the subscription\'s payment details. Once updated, Authorize.Net will automatically retry the failed payment in the subscription.'  , 'gravityformsauthorizenet' ),
-						'choices' => array(
-							array(
-								'label' => esc_html__( 'Automatic Retry is turned on in my Authorize.Net account. To enable this feature in your Authorize.Net account, go to the Recurring Billing page under Tools and click on "Enable Automatic Retry" under Settings.', 'gravityformsauthorizenet' ),
-								'name'  => 'automaticRetry'
-							)
-						),
-					),
-				),
-				array(
-					'type'     => 'save',
-					'messages' => array( 'success' => esc_html__( 'Settings updated successfully', 'gravityformsauthorizenet' ) )
-
+					$arb_field,
+					$automatic_retry_field,
 				),
 			),
 		);
-	}
-
-	public function settings_api_login( $field, $echo = true ) {
-
-		$api_login_field = $this->settings_text( $field, false );
-
-		$caption = sprintf( esc_html__( 'You can find your unique %sAPI Login ID%s by clicking on the \'Account\' link at the Authorize.Net Merchant Interface. Then click \'API Login ID and Transaction Key\'. Your API Login ID will be displayed.', 'gravityformsauthorizenet' ), '<strong>', '</strong>' );
-
-		if ( $echo ) {
-			echo $api_login_field . '</br><small>' . $caption . '</small>';
-		}
-
-		return $api_login_field . '</br><small>' . $caption . '</small>';
-
-	}
-
-	public function settings_api_key( $field, $echo = true ) {
-
-		$api_key_field = $this->settings_text( $field, false );
-
-		$caption = sprintf( esc_html__( 'You can find your unique %sTransaction Key%s by clicking on the \'Account\' link at the Authorize.Net Merchant Interface. Then click \'API Login ID and Transaction Key\'. For security reasons, you cannot view your Transaction Key, but you will be able to generate a new one.', 'gravityformsauthorizenet' ), '<strong>', '</strong>' );
-
-		if ( $echo ) {
-			echo $api_key_field . '</br><small>' . $caption . '</small>';
-		}
-
-		return $api_key_field . '</br><small>' . $caption . '</small>';
-
 	}
 
 	public function is_valid_plugin_key() {
@@ -321,7 +319,13 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 			array(
 				'name'    => 'options',
 				'label'   => esc_html__( 'Options', 'gravityformsauthorizenet' ),
-				'type'    => 'options',
+				'type'    => 'checkbox',
+				'choices' => array(
+					array(
+						'label' => esc_html__( 'Send Authorize.Net email receipt.', 'gravityformsauthorizenet' ),
+						'name'  => 'enableReceipt',
+					),
+				),
 				'tooltip' => '<h6>' . esc_html__( 'Options', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Turn on or off the available Authorize.Net checkout options.', 'gravityformsauthorizenet' ),
 			),
 		);
@@ -350,68 +354,90 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 
 		$default_settings = $this->add_field_after( 'billingInformation', $fields, $default_settings );
 
-		$fields = array(
-			array(
-				'name'     => 'apiSettingsEnabled',
-				'label'    => esc_html__( 'API Settings', 'gravityformsauthorizenet' ),
-				'type'     => 'checkbox',
-				'tooltip'  => '<h6>' . esc_html__( 'API Settings', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Override the settings provided on the Authorize.Net Settings page and use these instead for this feed.', 'gravityformsauthorizenet' ),
-				'onchange' => "if(jQuery(this).prop('checked')){
-										jQuery('#gaddon-setting-row-overrideMode').show();
-										jQuery('#gaddon-setting-row-overrideLogin').show();
-										jQuery('#gaddon-setting-row-overrideKey').show();
-									} else {
-										jQuery('#gaddon-setting-row-overrideMode').hide();
-										jQuery('#gaddon-setting-row-overrideLogin').hide();
-										jQuery('#gaddon-setting-row-overrideKey').hide();
-										jQuery('#overrideLogin').val('');
-										jQuery('#overrideKey').val('');
-										jQuery('i').removeClass('icon-check fa-check gf_valid');
-									}",
-				'choices'  => array(
-					array(
-						'label' => esc_html__( 'Override Default Settings', 'gravityformsauthorizenet' ),
-						'name'  => 'apiSettingsEnabled',
-					),
-				)
+		$api_settings_field = array(
+			'name'     => 'apiSettingsEnabled',
+			'label'    => esc_html__( 'API Settings', 'gravityformsauthorizenet' ),
+			'type'     => 'checkbox',
+			'tooltip'  => '<h6>' . esc_html__( 'API Settings', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Override the settings provided on the Authorize.Net Settings page and use these instead for this feed.', 'gravityformsauthorizenet' ),
+			'choices'  => array(
+				array(
+					'label' => esc_html__( 'Override Default Settings', 'gravityformsauthorizenet' ),
+					'name'  => 'apiSettingsEnabled',
+				),
 			),
-			array(
-				'name'          => 'overrideMode',
-				'label'         => esc_html__( 'Mode', 'gravityformsauthorizenet' ),
-				'type'          => 'radio',
-				'default_value' => 'test',
-				'hidden'        => ! $this->get_setting( 'apiSettingsEnabled' ),
-				'tooltip'       => '<h6>' . esc_html__( 'Mode', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Select either Production or Test mode to override the chosen mode on the Authorize.Net Settings page.', 'gravityformsauthorizenet' ),
-				'choices'       => array(
+		);
+
+		$mode_field = array(
+			'name'          => 'overrideMode',
+			'label'         => esc_html__( 'Mode', 'gravityformsauthorizenet' ),
+			'type'          => 'radio',
+			'default_value' => 'test',
+			'tooltip'       => '<h6>' . esc_html__( 'Mode', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Select either Production or Test mode to override the chosen mode on the Authorize.Net Settings page.', 'gravityformsauthorizenet' ),
+			'choices'       => array(
+				array(
+					'label' => esc_html__( 'Production', 'gravityformsauthorizenet' ),
+					'value' => 'production',
+				),
+				array(
+					'label' => esc_html__( 'Test', 'gravityformsauthorizenet' ),
+					'value' => 'test',
+				),
+			),
+			'horizontal'    => true,
+		);
+
+		$override_login_field = array(
+			'name'              => 'overrideLogin',
+			'label'             => esc_html__( 'API Login ID', 'gravityformsauthorizenet' ),
+			'type'              => 'text',
+			'class'             => 'medium',
+			'hidden'            => ! $this->get_setting( 'apiSettingsEnabled' ),
+			'tooltip'           => '<h6>' . esc_html__( 'API Login ID', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Enter a new value to override the API Login ID on the Authorize.Net Settings page.', 'gravityformsauthorizenet' ),
+			'feedback_callback' => array( $this, 'is_valid_custom_key' ),
+		);
+
+		$override_key_field = array(
+			'name'              => 'overrideKey',
+			'label'             => esc_html__( 'Transaction Key', 'gravityformsauthorizenet' ),
+			'type'              => 'text',
+			'class'             => 'medium',
+			'hidden'            => ! $this->get_setting( 'apiSettingsEnabled' ),
+			'tooltip'           => '<h6>' . esc_html__( 'Transaction Key', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Enter a new value to override the Transaction Key on the Authorize.Net Settings page.', 'gravityformsauthorizenet' ),
+			'feedback_callback' => array( $this, 'is_valid_custom_key' ),
+		);
+
+		if ( ! $this->is_gravityforms_supported( '2.5-dev-1' ) ) {
+			$api_settings_field['onchange'] = "if(jQuery(this).prop('checked')){
+			                                        jQuery('#gaddon-setting-row-overrideMode').show();
+			                                        jQuery('#gaddon-setting-row-overrideLogin').show();
+			                                        jQuery('#gaddon-setting-row-overrideKey').show();
+			                                    } else {
+			                                        jQuery('#gaddon-setting-row-overrideMode').hide();
+			                                        jQuery('#gaddon-setting-row-overrideLogin').hide();
+			                                        jQuery('#gaddon-setting-row-overrideKey').hide();
+			                                        jQuery('#overrideLogin').val('');
+			                                        jQuery('#overrideKey').val('');
+			                                        jQuery('i').removeClass('icon-check fa-check gf_valid');
+			                                    }";
+
+			$mode_field['hidden'] = ! $this->get_setting( 'apiSettingsEnabled' );
+		} else {
+			$mode_field['dependency'] = $override_login_field['dependency'] = $override_key_field['dependency'] = array(
+				'live'   => true,
+				'fields' => array(
 					array(
-						'label' => esc_html__( 'Production', 'gravityformsauthorizenet' ),
-						'value' => 'production',
-					),
-					array(
-						'label' => esc_html__( 'Test', 'gravityformsauthorizenet' ),
-						'value' => 'test',
+						'field'  => 'apiSettingsEnabled',
+						'values' => array( 'apiSettingsEnabled' ),
 					),
 				),
-				'horizontal'    => true,
-			),
-			array(
-				'name'              => 'overrideLogin',
-				'label'             => esc_html__( 'API Login ID', 'gravityformsauthorizenet' ),
-				'type'              => 'text',
-				'class'             => 'medium',
-				'hidden'            => ! $this->get_setting( 'apiSettingsEnabled' ),
-				'tooltip'           => '<h6>' . esc_html__( 'API Login ID', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Enter a new value to override the API Login ID on the Authorize.Net Settings page.', 'gravityformsauthorizenet' ),
-				'feedback_callback' => array( $this, 'is_valid_custom_key' ),
-			),
-			array(
-				'name'              => 'overrideKey',
-				'label'             => esc_html__( 'Transaction Key', 'gravityformsauthorizenet' ),
-				'type'              => 'text',
-				'class'             => 'medium',
-				'hidden'            => ! $this->get_setting( 'apiSettingsEnabled' ),
-				'tooltip'           => '<h6>' . esc_html__( 'Transaction Key', 'gravityformsauthorizenet' ) . '</h6>' . esc_html__( 'Enter a new value to override the Transaction Key on the Authorize.Net Settings page.', 'gravityformsauthorizenet' ),
-				'feedback_callback' => array( $this, 'is_valid_custom_key' ),
-			),
+			);
+		}
+
+		$fields = array(
+			$api_settings_field,
+			$mode_field,
+			$override_login_field,
+			$override_key_field,
 		);
 
 		$default_settings = $this->add_field_after( 'conditionalLogic', $fields, $default_settings );
@@ -419,25 +445,66 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 		return $default_settings;
 	}
 
-	public function settings_options( $field, $echo = true ) {
-		$checkboxes = array(
-			'name'    => 'options_checkboxes',
-			'type'    => 'checkboxes',
-			'choices' => array(
+	/**
+	 * Get post payment actions config.
+	 *
+	 * @since 3.1
+	 *
+	 * @param string $feed_slug The feed slug.
+	 *
+	 * @return array
+	 */
+	public function get_post_payment_actions_config( $feed_slug ) {
+		return array(
+			'position' => 'before',
+			'setting'  => 'conditionalLogic',
+		);
+	}
+
+	public function settings_setup_fee( $field, $echo = true ) {
+
+		$trial_row_id = $this->is_gravityforms_supported( '2.5-dev-1' ) ? '#gform_setting_trial' : '#gaddon-setting-row-trial';
+
+		$enabled_field = array(
+			'name'       => $field['name'] . '_checkbox',
+			'type'       => 'checkbox',
+			'horizontal' => true,
+			'choices'    => array(
 				array(
-					'label' => esc_html__( 'Send Authorize.Net email receipt.', 'gravityformsauthorizenet' ),
-					'name'  => 'enableReceipt'
+					'label'    => esc_html__( 'Enabled', 'gravityforms' ),
+					'name'     => $field['name'] . '_enabled',
+					'value'    => '1',
+					'onchange' => "if(jQuery(this).prop('checked')){jQuery('#{$field['name']}_product').show('slow'); jQuery('{$trial_row_id}').hide('slow');jQuery('{$trial_row_id}').find('input[type=\"checkbox\"]').prop('checked', false);jQuery('{$trial_row_id}').find('input[type=\"hidden\"]').val('0');} else { jQuery('#{$field['name']}_product').hide('slow'); jQuery('{$trial_row_id}').show('slow');}",
 				),
-			)
+			),
 		);
 
-		$html = $this->settings_checkbox( $checkboxes, false );
+		$html = $this->settings_checkbox( $enabled_field, false );
+
+		$form = $this->get_current_form();
+
+		$is_enabled = $this->get_setting( "{$field['name']}_enabled" );
+
+		$product_field = array(
+			'name'    => $field['name'] . '_product',
+			'type'    => 'select',
+			'class'   => $is_enabled ? '' : 'hidden',
+			'choices' => $this->get_payment_choices( $form ),
+		);
+
+		$html .= '&nbsp' . $this->settings_select( $product_field, false );
 
 		if ( $echo ) {
 			echo $html;
 		}
 
 		return $html;
+	}
+
+	public function set_trial_onchange( $field ) {
+		$setup_fee_row_id = $this->is_gravityforms_supported( '2.5-dev-1' ) ? '#gform_setting_setupFee' : '#gaddon-setting-row-setupFee';
+		return "if(jQuery(this).prop('checked')){jQuery('#{$field['name']}_product').show('slow');jQuery('{$setup_fee_row_id}').hide('slow');jQuery('{$setup_fee_row_id}').find('input[type=\"checkbox\"]').prop('checked', false);jQuery('{$setup_fee_row_id}').find('input[type=\"hidden\"]').val('0'); if (jQuery('#{$field['name']}_product').val() == 'enter_amount'){jQuery('#{$field['name']}_amount').show();}} else {jQuery('#{$field['name']}_product').hide('slow');jQuery('{$setup_fee_row_id}').show('slow');jQuery('#{$field['name']}_amount').hide();}";
+
 	}
 
 	public function checkbox_input_change_post_status( $choice, $attributes, $value, $tooltip ) {
@@ -744,7 +811,6 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 
 	//------ AUTHORIZE AND CAPTURE SINGLE PAYMENT ------//
 	public function authorize( $feed, $submission_data, $form, $entry ) {
-
 		$original_transaction = $this->get_payment_transaction( $feed, $submission_data, $form, $entry );
 
 		$config    = $this->get_config( $feed, $submission_data );
@@ -792,6 +858,8 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 			return $auth;
 		}
 
+		$transaction->setCustomField( 'x_solution_id', $this->get_solution_id( $feed ) );
+
 		//deprecated
 		$transaction = apply_filters( 'gform_authorizenet_before_single_payment', $transaction, $form_data, $config, $form );
 
@@ -799,8 +867,11 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 		$response = $transaction->authorizeAndCapture();
 
 		if ( $response->approved || $response->held ) {
-			$this->log_debug( __METHOD__ . "(): Funds captured successfully. Amount: {$response->amount}. Transaction Id: {$response->transaction_id}." );
 
+			$this->log_debug( __METHOD__ . "(): Funds captured successfully. Amount: {$response->amount}. Transaction Id: {$response->transaction_id}." );
+			if ( method_exists( $this, 'trigger_payment_delayed_feeds' ) ) {
+				$this->trigger_payment_delayed_feeds( $response->transaction_id, $feed, $entry, $form );
+			}
 			$auth = array(
 				'is_authorized'    => true,
 				'transaction_id'   => $response->transaction_id,
@@ -870,7 +941,6 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 		$transaction->customer_ip      = GFFormsModel::get_ip();
 		$transaction->invoice_num      = empty( $invoice_number ) ? uniqid() : $invoice_number; //???
 		$transaction->phone            = $submission_data['phone'];
-		$transaction->solution_id      = $this->get_solution_id( $feed );
 
 		foreach ( $submission_data['line_items'] as $line_item ) {
 			$taxable = rgempty( 'taxable', $line_item ) ? 'Y' : $line_item['taxable'];
@@ -884,7 +954,6 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 	}
 
 	public function process_capture( $authorization, $feed, $submission_data, $form, $entry ) {
-
 		/**
 		 * HOOK for backwards compatibility.
 		 *
@@ -1097,6 +1166,12 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 
 	public function process_subscription( $authorization, $feed, $submission_data, $form, $entry ) {
 
+		if ( $authorization['subscription']['is_success'] ) {
+			// Subscription was successfully created
+			if ( method_exists( $this, 'trigger_payment_delayed_feeds' ) ) {
+				$this->trigger_payment_delayed_feeds( $authorization['subscription']['subscription_id'], $feed, $entry, $form );
+			}
+		}
 		//gform_update_meta( $entry['id'], 'subscription_payment_date', gmdate( 'Y-m-d H:i:s' ) );
 
 		gform_update_meta( $entry['id'], 'subscription_payment_date', $authorization['subscription']['subscription_start_date']);
@@ -1590,5 +1665,20 @@ class GFAuthorizeNet extends GFPaymentAddOn {
 
 	}
 
+	/**
+	 * Determine if the referenced form uses Auth.net.
+	 *
+	 * @since 2.9.1
+	 *
+	 * @param int|string $form_id The ID of the form being processed.
+	 *
+	 * @return bool
+	 */
+	public static function form_uses_authnet( $form_id ) {
+		if ( ! $form_id ) {
+			return false;
+		}
 
+		return gf_authorizenet()->has_feed( $form_id );
+	}
 }
